@@ -2,6 +2,11 @@ import time, pyautogui, numpy, random
 
 cast_location = (968, 955) # add it to spells
 
+def around(color, rgb):
+	return ((color[0] - 15 <= rgb[0] and rgb[0] <= color[0] + 15) and
+		(color[1] - 15 <= rgb[1] and rgb[1] <= color[1] + 15) and
+			(color[2] - 15 <= rgb[2] and rgb[2] <= color[2] + 15)) 
+
 class move():
 	def __init__(self, name, color, color_count, from_x, from_y, to_x, to_y, extra_turn):
 		self.name = name
@@ -13,13 +18,16 @@ class move():
 		self.to_y = to_y
 		self.extra_turn = extra_turn
 	def __str__(self):
-		return "{0} of {1} ({2}, {3}) -> ({4}, {5}) with extra_turn = {6}".format(self.color_count, self.name, self.from_x + 1, self.from_y + 1, self.to_x + 1, self.to_y + 1, self.extra_turn)
+		return "{0} of {1} ({2}, {3}) -> ({4}, {5}) with extra_turn = {6}({7})".format(self.color_count, self.name, self.from_x + 1, self.from_y + 1, self.to_x + 1, self.to_y + 1, self.extra_turn, self.color_count)
 	def __eq__(self, obj):
 		return self.extra_turn == obj.extra_turn
 	def __lt__(self, obj):
-		if(self.extra_turn == obj.extra_turn): # TODO: better logic
-			if(self.color == (2 << 6) or self.color == (2 << 2) or self.color == (2 << 1)):
+		if(self.extra_turn == obj.extra_turn):
+			if(self.color == obj.color):
+				return (self.color_count > obj.color_count)
+			if(self.color == (2 << 6) or self.color == (2 << 2) or self.color == (2 << 0) or self.color == (2 << 0)):
 				return True
+			return False
 		return self.extra_turn > obj.extra_turn
 
 class tableManager():
@@ -46,16 +54,11 @@ class tableManager():
 				strMatrix = strMatrix + self.colorToString(self.matrix[line][column]) + " "
 			strMatrix = strMatrix + "\n"
 		return strMatrix
-				
-	def around(self, color, rgb):
-		return ((color[0] - 5 <= rgb[0] and rgb[0] <= color[0] + 5) and
-			(color[1] - 5 <= rgb[1] and rgb[1] <= color[1] + 5) and
-				(color[2] - 5 <= rgb[2] and rgb[2] <= color[2] + 5)) 
 
 	def bfs(self, line, column, color_1, color_2):
 		if(line < 0 or line > 7 or column < 0 or column > 7):
 			return 0
-		if(not (self.matrix[line][column] & color_1 & color_2)):
+		if(not (self.matrix[line][column] & (color_1 | color_2))):
 			return 0
 		if(self.visited[line][column]):
 			return 0
@@ -65,7 +68,7 @@ class tableManager():
 		ans = ans + self.bfs(line + 1, column, color_1, color_2)
 		ans = ans + self.bfs(line - 1, column, color_1, color_2)
 		ans = ans + self.bfs(line, column + 1, color_1, color_2)
-		ans = ans + self/bfs(line, column - 1, color_1, color_2)
+		ans = ans + self.bfs(line, column - 1, color_1, color_2)
 		self.visited[line][column] = False
 		return ans
 
@@ -75,6 +78,7 @@ class tableManager():
 
 		for line in range(0, 8):
 			for column in range(0, 8):
+				#print(pixels[self.lines_height[line]][self.column_width[column]])
 				self.matrix[line][column] = self.getPixelColor(pixels[self.lines_height[line]][self.column_width[column]])
 	
 	def colorToString(self, color):
@@ -155,6 +159,7 @@ class tableManager():
 					self.moves.append(move_b)
 
 		self.moves.sort()
+		self.best_move = self.moves[0]
 		#for move in self.moves:
 			#print(move)
 
@@ -195,17 +200,17 @@ class tableManager():
 		return move_a, move_b
 
 	def getPixelColor(self, pixel):
-		if(self.around(self.blue, pixel)):
+		if(around(self.blue, pixel)):
 			return 2 << 0 # blue
-		if(self.around(self.brown, pixel)):
+		if(around(self.brown, pixel)):
 			return 2 << 1 # brown
-		if(self.around(self.green, pixel)):
+		if(around(self.green, pixel)):
 			return 2 << 2 # green
-		if(self.around(self.purple, pixel)):
+		if(around(self.purple, pixel)):
 			return 2 << 3 # purple
-		if(self.around(self.red, pixel)):
+		if(around(self.red, pixel)):
 			return 2 << 4 # red
-		if(self.around(self.yellow, pixel)):
+		if(around(self.yellow, pixel)):
 			return 2 << 5 # yellow
 		return 2 << 6 # skulls
 	
@@ -220,25 +225,27 @@ class tableManager():
 		self.moveTo(x, y)
 		self.dragTo(to_x, to_y)
 
-	def moveTo(self, x, y, max_duration = 0.5):
-		pyautogui.moveTo(x, y, duration=random.uniform(0.2, max_duration))
+	def moveTo(self, x, y, max_duration = 0.35):
+		pyautogui.moveTo(x, y, duration=random.uniform(0.15, max_duration))
 
 	def twoColorsExtraTurn(self, color_1, color_2):
 		for line in range(8):
 			for column in range(8):
-				if(self.bfs(line, column, color_1, color_2) > 4):
+				if(self.bfs(line, column, color_1, color_2) >= 4):
 					return True
 		return False
+
 	def makeMove(self):
-		self.interchange(self.moves[0].from_x, self.moves[0].from_y, self.moves[0].to_x, self.moves[0].to_y)
+		self.interchange(self.best_move.from_x, self.best_move.from_y, self.best_move.to_x, self.best_move.to_y)
 		self.moves.clear()
-		time.sleep(random.uniform(0.1, 0.2))
+		time.sleep(random.uniform(0.15, 0.2))
 
 class spellManager():
 	def __init__(self):
 		self.spell_check_pixel = [19, 227, 246]
 
 	def getSpellsStatus(self):
+		time.sleep(0.6)
 		ss = pyautogui.screenshot()
 		pixels = numpy.array(ss)
 
@@ -249,8 +256,8 @@ class spellManager():
 
 		return ok1, ok2, ok3, ok4
 
-	def moveTo(self, x, y, max_duration = 0.5):
-		pyautogui.moveTo(x, y, duration=random.uniform(0.2, max_duration))
+	def moveTo(self, x, y, max_duration = 0.35):
+		pyautogui.moveTo(x, y, duration=random.uniform(0.1, max_duration))
 
 	def useSpell(self, index):
 		has_target = False
@@ -263,40 +270,46 @@ class spellManager():
 			self.moveTo(second_spell_location[1] + random.randint(-120, 120), second_spell_location[0] + random.randint(-80, 80), 0.3)
 			pyautogui.click()
 		elif(index == 3):
-			has_target = True
 			third_spell_location = (700, 320)
-			self.moveTo(third_spell_location[1] + random.randint(-120, 120), third_spell_location[0] + random.randint(-80, 80), 0.3); #has target
+			self.moveTo(third_spell_location[1] + random.randint(-120, 120), third_spell_location[0] + random.randint(-80, 80), 0.3);
 			pyautogui.click();
 		else:
-			has_target = True
 			forth_spell_location = (940, 320)
-			self.moveTo(forth_spell_location[1] + random.randint(-120, 120), forth_spell_location[0] + random.randint(-80, 80), 0.3); #has target
+			self.moveTo(forth_spell_location[1] + random.randint(-120, 120), forth_spell_location[0] + random.randint(-80, 80), 0.3);
 			pyautogui.click();
 
-		self.moveTo(cast_location[1] + random.randint(-150, 150), cast_location[0] + random.randint(-40, 40), 0.3)
+		self.moveTo(cast_location[1] + random.randint(-150, 150), cast_location[0] + random.randint(-20, 20), 0.3)
 		pyautogui.click()
-
-		if(has_target == True): 
-			first_enemy_location = (190, 1600)
-			self.moveTo(first_enemy_location[1] + random.randint(-100, 100), first_enemy_location[0] + random.randint(-70, 70), 0.25)
-			pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
-			second_enemy_location = (450, 1600)
-			self.moveTo(second_enemy_location[1] + random.randint(-100, 100), second_enemy_location[0] + random.randint(-70, 70), 0.25)
-			pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
-			third_enemy_location = (700, 1600)
-			self.moveTo(third_enemy_location[1] + random.randint(-100, 100), third_enemy_location[0] + random.randint(-70, 70), 0.25)
-			pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
-			forth_enemy_location = (950, 1600)
-			self.moveTo(forth_enemy_location[1] + random.randint(-100, 100), forth_enemy_location[0] + random.randint(-70, 70), 0.25)
-			pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
-			pyautogui.click()
-			time.sleep(0.1)
+		#redundancy for mouse hovering storm
+ 		self.moveTo(796, 12, 0.15) 
+		pyautogui.click()	
+'''	
+		when better target mechanincs are implemented
+		first_enemy_location = (190, 1600)
+		self.moveTo(first_enemy_location[1] + random.randint(-100, 100), first_enemy_location[0] + random.randint(-70, 70), 0.25)
+		pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
+		second_enemy_location = (450, 1600)
+		self.moveTo(second_enemy_location[1] + random.randint(-100, 100), second_enemy_location[0] + random.randint(-70, 70), 0.25)
+		pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
+		third_enemy_location = (700, 1600)
+		self.moveTo(third_enemy_location[1] + random.randint(-100, 100), third_enemy_location[0] + random.randint(-70, 70), 0.25)
+		pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
+		forth_enemy_location = (950, 1600)
+		self.moveTo(forth_enemy_location[1] + random.randint(-100, 100), forth_enemy_location[0] + random.randint(-70, 70), 0.25)
+		pyautogui.doubleClick(interval = random.uniform(0.05, 0.1))
+		pyautogui.click()
+		time.sleep(0.1)
+'''
 
 class envManager():
 	def __init__(self):
+		self.skip_and_continue = (980, 1015)
 		self.middle_enemy = (960, 550)
 		self.start_fight = (980, 1015)
-		self.hero_mvp = (948, 973)
+		self.hero_mvp_continue = (948, 973)
+		self.mvp_pixel = [26, 48, 72]
+		self.check_pvp_rewards = (970, 1154)
+		self.pvp_rewards_pixel = [162, 127, 65]
 
 	def battleGoing(self):
 		ok = self.isMyTurn(True)
@@ -312,25 +325,41 @@ class envManager():
 
 		self.moveTo(self.start_fight[0] + random.randint(-500, 500), self.start_fight[1] + random.randint(-25, 25))
 		pyautogui.click()
-		time.sleep(8)
+		while(not self.isMyTurn()):
+			continue
 
 	def enterPvpScreen(self):
-		time.sleep(5) # changeable
-		skip_and_continue = (980, 1015)
-		self.moveTo(skip_and_continue[0] + random.randint(-500, 500), skip_and_continue[1] + random.randint(-13, 13), 0.3)
+		ok = False
+		while(not ok):
+			ss = pyautogui.screenshot()
+			time.sleep(0.5)
+			ss2 = pyautogui.screenshot()
+			ok = (ss == ss2) 
+
+		#skip has ended, we can click continue
+		self.moveTo(self.skip_and_continue[1] + random.randint(-500, 500), self.skip_and_continue[0] + random.randint(-13, 13), 0.3)
 		pyautogui.click()
-		time.sleep(random.uniform(2.5, 3.2)) 
-		self.moveTo(self.hero_mvp[1] + random.randint(-150, 150), self.hero_mvp[0] + random.randint(-40, 40), 0.3)
+		time.sleep(random.uniform(2.5, 3.2))
+
+		#check for mvp screen
+		#ss = pyautogui.screenshot()
+		#pixels = numpy.array(ss)
+		#if(around(pixels[0][0], self.mvp_pixel)):
+		self.moveTo(self.hero_mvp_continue[1] + random.randint(-150, 150), self.hero_mvp_continue[0] + random.randint(-20, 20), 0.3)
 		pyautogui.click()
-		time.sleep(random.uniform(2, 2.5))
-		self.moveTo(cast_location[1] + random.randint(250, 270), cast_location[0] + random.randint(-11, 11), 0.3) # for the kingdom rewards
-		self.doubleClick()
+		time.sleep(random.uniform(2.4, 2.9))
+		
+		self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
+		pyautogui.click()
+		time.sleep(0.5)
+		self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
+		pyautogui.click()
 
 	def doubleClick(self):
 		pyautogui.doubleClick(interval = random.uniform(0.1, 0.15))
 
 	def isMyTurn(self, check_end_game = False):
-		time.sleep(0.5)
+		time.sleep(0.7)
 		ss = pyautogui.screenshot()
 		pixels = numpy.array(ss)
 		my_arrow_x = 317 #TODO: make my_array and enemy_arrow as member
@@ -344,10 +373,12 @@ class envManager():
 		for l in range(26):
 			if(pixels[l][enemy_arrow_x][0] == 255 and pixels[l][enemy_arrow_x][1] == 255 and pixels[l][enemy_arrow_x][2] == 255):
 				enemy_count = enemy_count + 1
+
 		if(check_end_game):
 			if(my_count == 0 and enemy_count == 0):
 				return False
 			return True
+
 		if(my_count > 7):
 			return True
 		elif(enemy_count > 7):
@@ -355,8 +386,8 @@ class envManager():
 
 		return True
 
-	def moveTo(self, x, y, max_duration = 0.5):
-		pyautogui.moveTo(x, y, duration=random.uniform(0.2, max_duration))
+	def moveTo(self, x, y, max_duration = 0.3):
+		pyautogui.moveTo(x, y, duration=random.uniform(0.15, max_duration))
 
 class Ricky():
 	def __init__(self):
@@ -367,41 +398,45 @@ class Ricky():
 	def makeMove(self):
 			self.table.createMatrix()
 			self.table.findAllMoves()
-			ok1, ok2, ok3, ok4 = self.spells.getSpellsStatus()
-
-			if(ok1 and self.table.twoColorsExtraTurn(2 << 2, 2 << 6)): #green w/ skull
-				self.spells.useSpell(1)
-				time.sleep(random.uniform(0.8, 1))
-			elif(self.table.moves[0].extra_turn):
+			if(self.table.best_move.extra_turn):
 				self.table.makeMove()
-			elif(ok2):
-				self.spells.useSpell(2)
-				time.sleep(random.uniform(0.5, 0.7))
-			elif(ok3):
-				self.spells.useSpell(3)
-				time.sleep(random.uniform(0.8, 1))
-			elif(ok4):
-				self.spells.useSpell(4)
-				time.sleep(random.uniform(0.2, 0.35))
 			else:
-				self.table.makeMove()
+				ok1, ok2, ok3, ok4 = self.spells.getSpellsStatus()
+				if(ok2):
+					self.spells.useSpell(2)
+					time.sleep(random.uniform(0.6, 0.8))
+				elif(ok3):
+					self.spells.useSpell(3)
+					time.sleep(random.uniform(0.6, 0.8))
+				elif(ok4):
+					self.spells.useSpell(4)
+					time.sleep(random.uniform(0.6, 0.8))
+				elif(ok1):
+					self.spells.useSpell(1)
+					time.sleep(random.uniform(0.6, 0.8))
+				else:
+					self.table.makeMove()
 
 	def play(self):
 		time.sleep(2)
 		count = 0
 		while(1):
 			self.env.enterBattle()
+			while(not self.env.battleGoing()): #loading
+				continue
 			while(self.env.battleGoing()):
 				self.makeMove()
 				while(not self.env.isMyTurn()):
-					time.sleep(2)
+					continue
 			self.env.enterPvpScreen()
 			count = count + 1
-			if(count % 15 == 0):
-				time.sleep(random.randint(60 * 15, 60 * 20))
+			if(random.randint(0, 100) < 6):
+				time.sleep(random.randint(8, 12))
 
 if __name__ == '__main__':
-	if(8):
-		print('da')
 	riky = Ricky()
 	riky.play()
+	'''time.sleep(1)
+	env = envManager()
+	env.enterPvpScreen()
+	'''
