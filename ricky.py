@@ -281,9 +281,9 @@ class spellManager():
 		self.moveTo(cast_location[1] + random.randint(-150, 150), cast_location[0] + random.randint(-20, 20), 0.3)
 		pyautogui.click()
 		#redundancy for mouse hovering storm
- 		self.moveTo(796, 12, 0.15) 
-		pyautogui.click()	
-'''	
+		self.moveTo(796, 12, 0.15)
+		pyautogui.click()
+'''
 		when better target mechanincs are implemented
 		first_enemy_location = (190, 1600)
 		self.moveTo(first_enemy_location[1] + random.randint(-100, 100), first_enemy_location[0] + random.randint(-70, 70), 0.25)
