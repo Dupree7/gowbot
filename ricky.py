@@ -339,13 +339,13 @@ class envManager():
 		#skip has ended, we can click continue
 		self.moveTo(self.skip_and_continue[1] + random.randint(-500, 500), self.skip_and_continue[0] + random.randint(-13, 13), 0.3)
 		pyautogui.click()
-		time.sleep(random.uniform(2.5, 3.2))
+		time.sleep(random.uniform(2.8, 3.2))
 
 		#check for mvp screen
 		#ss = pyautogui.screenshot()
 		#pixels = numpy.array(ss)
 		#if(around(pixels[0][0], self.mvp_pixel)):
-		self.moveTo(self.hero_mvp_continue[1] + random.randint(-150, 150), self.hero_mvp_continue[0] + random.randint(-20, 20), 0.3)
+		self.moveTo(self.hero_mvp_continue[1] + random.randint(-130, 130), self.hero_mvp_continue[0] + random.randint(-20, 20), 0.3)
 		pyautogui.click()
 		time.sleep(random.uniform(2.4, 2.9))
 		
@@ -359,7 +359,7 @@ class envManager():
 		pyautogui.doubleClick(interval = random.uniform(0.1, 0.15))
 
 	def isMyTurn(self, check_end_game = False):
-		time.sleep(0.7)
+		time.sleep(0.6)
 		ss = pyautogui.screenshot()
 		pixels = numpy.array(ss)
 		my_arrow_x = 317 #TODO: make my_array and enemy_arrow as member
@@ -431,7 +431,7 @@ class Ricky():
 			self.env.enterPvpScreen()
 			count = count + 1
 			if(random.randint(0, 100) < 6):
-				time.sleep(random.randint(8, 12))
+				time.sleep(random.randint(8 * 60, 12 * 60))
 
 if __name__ == '__main__':
 	riky = Ricky()
