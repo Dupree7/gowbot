@@ -1,11 +1,17 @@
-import time, pyautogui, numpy, random
+import time, pyautogui, numpy, random, sys
 
 cast_location = (968, 955) # add it to spells
+debug_file = open("debug.log", "w")
 
 def around(color, rgb):
 	return ((color[0] - 15 <= rgb[0] and rgb[0] <= color[0] + 15) and
 		(color[1] - 15 <= rgb[1] and rgb[1] <= color[1] + 15) and
 			(color[2] - 15 <= rgb[2] and rgb[2] <= color[2] + 15)) 
+
+def Log(msg):
+	now = time.localtime()
+	current_time = time.strftime("%H:%M:%S", now)
+	debug_file.write("Current Time = {0} -> {1}\n".format(current_time, msg))
 
 class move():
 	def __init__(self, name, color, color_count, from_x, from_y, to_x, to_y, extra_turn):
@@ -78,7 +84,7 @@ class tableManager():
 
 		for line in range(0, 8):
 			for column in range(0, 8):
-				#print(pixels[self.lines_height[line]][self.column_width[column]])
+				#Log(pixels[self.lines_height[line]][self.column_width[column]])
 				self.matrix[line][column] = self.getPixelColor(pixels[self.lines_height[line]][self.column_width[column]])
 	
 	def colorToString(self, color):
@@ -161,7 +167,7 @@ class tableManager():
 		self.moves.sort()
 		self.best_move = self.moves[0]
 		#for move in self.moves:
-			#print(move)
+			#Log(move)
 
 	def getMoveToBottom(self, line, column):
 		assert (line >= 0 and line < 8 and column >= 0 and column < 8)
@@ -304,8 +310,8 @@ class spellManager():
 class envManager():
 	def __init__(self):
 		self.skip_and_continue = (980, 1015)
-		self.middle_enemy = (960, 550)
-		self.start_fight = (980, 1015)
+		self.middle_enemy = (550, 960)
+		self.start_fight = (1015, 980)
 		self.hero_mvp_continue = (948, 973)
 		self.mvp_pixel = [26, 48, 72]
 		self.check_pvp_rewards = (970, 1154)
@@ -319,11 +325,11 @@ class envManager():
 		return ok
 
 	def enterBattle(self):
-		self.moveTo(self.middle_enemy[0] + random.randint(-130, 130), self.middle_enemy[1] + random.randint(-200, 200))
+		self.moveTo(self.middle_enemy[1] + random.randint(-130, 130), self.middle_enemy[0] + random.randint(-200, 200))
 		pyautogui.click()
 		time.sleep(0.15)
 
-		self.moveTo(self.start_fight[0] + random.randint(-500, 500), self.start_fight[1] + random.randint(-25, 25))
+		self.moveTo(self.start_fight[1] + random.randint(-400, 400), self.start_fight[0] + random.randint(-25, 25))
 		pyautogui.click()
 		while(not self.isMyTurn()):
 			continue
@@ -337,18 +343,25 @@ class envManager():
 			ok = (ss == ss2) 
 
 		#skip has ended, we can click continue
-		self.moveTo(self.skip_and_continue[1] + random.randint(-500, 500), self.skip_and_continue[0] + random.randint(-13, 13), 0.3)
+		self.moveTo(self.skip_and_continue[1] + random.randint(-400, 400), self.skip_and_continue[0] + random.randint(-13, 13), 0.3)
 		pyautogui.click()
 		time.sleep(random.uniform(2.8, 3.2))
 
-		#check for mvp screen
+		#check for mvp screen - still buggy
 		#ss = pyautogui.screenshot()
 		#pixels = numpy.array(ss)
 		#if(around(pixels[0][0], self.mvp_pixel)):
 		self.moveTo(self.hero_mvp_continue[1] + random.randint(-130, 130), self.hero_mvp_continue[0] + random.randint(-20, 20), 0.3)
 		pyautogui.click()
-		time.sleep(random.uniform(2.4, 2.9))
-		
+		time.sleep(random.uniform(3, 3.5))
+	
+		#in case loading takes much more		
+		while(not ok):
+			ss = pyautogui.screenshot()
+			time.sleep(0.3)
+			ss2 = pyautogui.screenshot()
+			ok = (ss == ss2) 
+
 		self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
 		pyautogui.click()
 		time.sleep(0.5)
@@ -420,20 +433,34 @@ class Ricky():
 	def play(self):
 		time.sleep(2)
 		count = 0
+		last_sleep_time = time.localtime()
 		while(1):
+			Log("Enter Battle")
 			self.env.enterBattle()
+			Log("Wait Loading")
 			while(not self.env.battleGoing()): #loading
 				continue
+			Log("Loading Finished")
 			while(self.env.battleGoing()):
+				Log("My Turn Started")
 				self.makeMove()
+				Log("Made move")
 				while(not self.env.isMyTurn()):
 					continue
+				Log("Waited Enemy Turn")
+			Log("Battle Finished")
 			self.env.enterPvpScreen()
+			Log("Entered PVP Screen")
 			count = count + 1
-			if(random.randint(0, 100) < 6):
+			Log("Fights:                          " + str(count))
+			now = time.localtime()
+			if((last_sleep_time.tm_hour * 60 + last_sleep_time.tm_min) - (now.tm_hour * 60 + now.tm_min) > 50):
+				Log("Sleeping")
 				time.sleep(random.randint(8 * 60, 12 * 60))
+				last_sleep_time = time.localtime()
 
 if __name__ == '__main__':
+	pyautogui.FAILSAFE = False
 	riky = Ricky()
 	riky.play()
 	'''time.sleep(1)
