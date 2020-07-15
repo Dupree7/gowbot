@@ -259,7 +259,7 @@ class spellManager():
 		ok2 = (pixels[330][169][0] == self.spell_check_pixel[0] and pixels[330][169][1] == self.spell_check_pixel[1] and pixels[330][169][2] == self.spell_check_pixel[2])
 		ok3 = (pixels[585][169][0] == self.spell_check_pixel[0] and pixels[585][169][1] == self.spell_check_pixel[1] and pixels[585][169][2] == self.spell_check_pixel[2])
 		ok4 = (pixels[840][169][0] == self.spell_check_pixel[0] and pixels[840][169][1] == self.spell_check_pixel[1] and pixels[840][169][2] == self.spell_check_pixel[2])
-
+		
 		return ok1, ok2, ok3, ok4
 
 	def moveTo(self, x, y, max_duration = 0.35):
@@ -316,6 +316,7 @@ class envManager():
 		self.mvp_pixel = [26, 48, 72]
 		self.check_pvp_rewards = (970, 1154)
 		self.pvp_rewards_pixel = [162, 127, 65]
+		self.last_sleep_time = time.localtime()
 
 	def battleGoing(self):
 		ok = self.isMyTurn(True)
@@ -325,21 +326,37 @@ class envManager():
 		return ok
 
 	def enterBattle(self):
+		now = time.localtime()
+		if((now.tm_hour * 60 + now.tm_min) - (self.last_sleep_time.tm_hour * 60 + self.last_sleep_time.tm_min) > 55):
+			Log("Sleeping")
+			time.sleep(random.randint(15 * 60, 20 * 60))
+			self.last_sleep_time = time.localtime()
+
+			#pvp rewards
+			self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
+			pyautogui.click()
+			time.sleep(0.5)
+			pyautogui.click()
+
 		self.moveTo(self.middle_enemy[1] + random.randint(-130, 130), self.middle_enemy[0] + random.randint(-200, 200))
 		pyautogui.click()
 		time.sleep(0.15)
 
 		self.moveTo(self.start_fight[1] + random.randint(-400, 400), self.start_fight[0] + random.randint(-25, 25))
 		pyautogui.click()
-		while(not self.isMyTurn()):
+		count = 0
+		while(not self.isMyTurn() and count < 40):
+			count = count + 1
 			continue
 
 	def enterPvpScreen(self):
 		ok = False
-		while(not ok):
+		count = 0
+		while(not ok and count < 30):
 			ss = pyautogui.screenshot()
 			time.sleep(0.5)
 			ss2 = pyautogui.screenshot()
+			count = count + 1
 			ok = (ss == ss2) 
 
 		#skip has ended, we can click continue
@@ -351,28 +368,35 @@ class envManager():
 		#ss = pyautogui.screenshot()
 		#pixels = numpy.array(ss)
 		#if(around(pixels[0][0], self.mvp_pixel)):
-		self.moveTo(self.hero_mvp_continue[1] + random.randint(-130, 130), self.hero_mvp_continue[0] + random.randint(-20, 20), 0.3)
+		self.moveTo(self.hero_mvp_continue[1] + random.randint(-130, 130), self.hero_mvp_continue[0] + random.randint(-15, 15), 0.3)
 		pyautogui.click()
+
+		ss = pyautogui.screenshot()
+		pixels = numpy.array(ss)
+		if(around(pixels[0][0], self.mvp_pixel)):
+			self.moveTo(self.hero_mvp_continue[1] + random.randint(-130, 130), self.hero_mvp_continue[0] + random.randint(-15, 15), 0.3)
+			pyautogui.click()
 		time.sleep(random.uniform(3, 3.5))
 	
-		#in case loading takes much more		
-		while(not ok):
+		#in case loading takes much more
+		count = 0		
+		while(not ok and count < 30):
 			ss = pyautogui.screenshot()
 			time.sleep(0.3)
 			ss2 = pyautogui.screenshot()
+			count = count + 1
 			ok = (ss == ss2) 
 
 		self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
 		pyautogui.click()
 		time.sleep(0.5)
-		self.moveTo(self.check_pvp_rewards[1], self.check_pvp_rewards[0], 0.3)
 		pyautogui.click()
 
 	def doubleClick(self):
 		pyautogui.doubleClick(interval = random.uniform(0.1, 0.15))
 
 	def isMyTurn(self, check_end_game = False):
-		time.sleep(0.6)
+		time.sleep(0.75)
 		ss = pyautogui.screenshot()
 		pixels = numpy.array(ss)
 		my_arrow_x = 317 #TODO: make my_array and enemy_arrow as member
@@ -411,6 +435,7 @@ class Ricky():
 	def makeMove(self):
 			self.table.createMatrix()
 			self.table.findAllMoves()
+			print(self.table)
 			if(self.table.best_move.extra_turn):
 				self.table.makeMove()
 			else:
@@ -432,13 +457,14 @@ class Ricky():
 
 	def play(self):
 		time.sleep(2)
-		count = 0
-		last_sleep_time = time.localtime()
+		fight_count = 0
 		while(1):
 			Log("Enter Battle")
 			self.env.enterBattle()
 			Log("Wait Loading")
-			while(not self.env.battleGoing()): #loading
+			count = 0
+			while(not self.env.battleGoing() and count < 20): #loading
+				count = count + 1
 				continue
 			Log("Loading Finished")
 			while(self.env.battleGoing()):
@@ -451,13 +477,9 @@ class Ricky():
 			Log("Battle Finished")
 			self.env.enterPvpScreen()
 			Log("Entered PVP Screen")
-			count = count + 1
-			Log("Fights:                          " + str(count))
-			now = time.localtime()
-			if((last_sleep_time.tm_hour * 60 + last_sleep_time.tm_min) - (now.tm_hour * 60 + now.tm_min) > 50):
-				Log("Sleeping")
-				time.sleep(random.randint(8 * 60, 12 * 60))
-				last_sleep_time = time.localtime()
+			fight_count = fight_count + 1
+			Log("Fights:                    " + str(fight_count))
+
 
 if __name__ == '__main__':
 	pyautogui.FAILSAFE = False
