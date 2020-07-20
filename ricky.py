@@ -226,7 +226,7 @@ class tableManager():
 		return x, y
 
 	def interchange(self, from_l, from_c, to_l, to_c):
-		x,y = self.getPixelsAt(from_l, from_c)
+		x, y = self.getPixelsAt(from_l, from_c)
 		to_x, to_y = self.getPixelsAt(to_l, to_c)
 		self.moveTo(x, y)
 		self.dragTo(to_x, to_y)
@@ -329,7 +329,7 @@ class envManager():
 		now = time.localtime()
 		if((now.tm_hour * 60 + now.tm_min) - (self.last_sleep_time.tm_hour * 60 + self.last_sleep_time.tm_min) > 55):
 			Log("Sleeping")
-			time.sleep(random.randint(15 * 60, 20 * 60))
+			time.sleep(random.randint(10 * 60, 14 * 60))
 			self.last_sleep_time = time.localtime()
 
 			#pvp rewards
@@ -393,7 +393,7 @@ class envManager():
 		pyautogui.click()
 
 	def doubleClick(self):
-		pyautogui.doubleClick(interval = random.uniform(0.1, 0.15))
+		pyautogui.doubleClick(interval = random.uniform(0.05, 0.08))
 
 	def isMyTurn(self, check_end_game = False):
 		time.sleep(0.75)
@@ -410,6 +410,9 @@ class envManager():
 		for l in range(26):
 			if(pixels[l][enemy_arrow_x][0] == 255 and pixels[l][enemy_arrow_x][1] == 255 and pixels[l][enemy_arrow_x][2] == 255):
 				enemy_count = enemy_count + 1
+
+		#Log("my_count = " + str(my_count))
+		#Log("enemy_count = " + str(enemy_count))
 
 		if(check_end_game):
 			if(my_count == 0 and enemy_count == 0):
@@ -433,27 +436,27 @@ class Ricky():
 		self.env = envManager()
 
 	def makeMove(self):
-			self.table.createMatrix()
-			self.table.findAllMoves()
-			print(self.table)
-			if(self.table.best_move.extra_turn):
-				self.table.makeMove()
+		time.sleep(0.1)
+		self.table.createMatrix()
+		self.table.findAllMoves()
+		if(self.table.best_move.extra_turn):
+			self.table.makeMove()
+		else:
+			ok1, ok2, ok3, ok4 = self.spells.getSpellsStatus()
+			if(ok2):
+				self.spells.useSpell(2)
+				time.sleep(random.uniform(0.6, 0.8))
+			elif(ok3):
+				self.spells.useSpell(3)
+				time.sleep(random.uniform(0.6, 0.8))
+			elif(ok4):
+				self.spells.useSpell(4)
+				time.sleep(random.uniform(0.6, 0.8))
+			elif(ok1):
+				self.spells.useSpell(1)
+				time.sleep(random.uniform(0.6, 0.8))
 			else:
-				ok1, ok2, ok3, ok4 = self.spells.getSpellsStatus()
-				if(ok2):
-					self.spells.useSpell(2)
-					time.sleep(random.uniform(0.6, 0.8))
-				elif(ok3):
-					self.spells.useSpell(3)
-					time.sleep(random.uniform(0.6, 0.8))
-				elif(ok4):
-					self.spells.useSpell(4)
-					time.sleep(random.uniform(0.6, 0.8))
-				elif(ok1):
-					self.spells.useSpell(1)
-					time.sleep(random.uniform(0.6, 0.8))
-				else:
-					self.table.makeMove()
+				self.table.makeMove()
 
 	def play(self):
 		time.sleep(2)
@@ -467,6 +470,11 @@ class Ricky():
 				count = count + 1
 				continue
 			Log("Loading Finished")
+			
+			#redundancy for mouse hovering storm
+			pyautogui.moveTo(796, 12, 0.5)
+			pyautogui.click()
+
 			while(self.env.battleGoing()):
 				Log("My Turn Started")
 				self.makeMove()
@@ -474,6 +482,7 @@ class Ricky():
 				while(not self.env.isMyTurn()):
 					continue
 				Log("Waited Enemy Turn")
+
 			Log("Battle Finished")
 			self.env.enterPvpScreen()
 			Log("Entered PVP Screen")
